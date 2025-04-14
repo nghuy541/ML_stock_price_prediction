@@ -8,18 +8,22 @@
 - [Acknowledgement](#Acknowledgements)
 
 
-## Tổng quan dự án            
-## Cài đặt
-Cài đặt môi trường                      
+## Tổng-quan-dự-án           
+## Cài-đặt
+<!-- Cài đặt môi trường                      
 ```shell
+cmd
 
-
-```
+``` -->
 Tạo môi trường     
 ```shell
-uv venv                     
+python -m venv venv                    
 ```    
 Kích hoạt môi trường                          
 ```shell
 .venv/Scripts/activate                                                            
 ```       
+Cài đặt thư viện                                               
+```shell
+pip install -r requirements.txt                                                                              
+```    

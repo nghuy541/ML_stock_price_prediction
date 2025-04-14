@@ -126,7 +126,7 @@ def growth_percent_cal(df):
 
 
 def inference():
-    st.title("Dự đoán giá cổ phiếu")
+    st.title("Dự đoán tăng trưởng của cổ phiếu")
     features = ['open', 'high', 'low', 'volume', 'index_encoded','lag_1','lag_2',
     'rolling_mean_3','rolling_std_3','momentum_1']
     target_col = 'close'
@@ -136,7 +136,7 @@ def inference():
     test_df1 = label_encoder(test_df1)
     test_df1 = test_df1.groupby('symbol').apply(add_features).reset_index(drop=True)
     # Tạo một expander để chứa danh sách ngân hàng
-    with st.expander("Chọn ngân hàng"):
+    with st.expander("Chọn loại cổ phiếu"):
         # Sidebar or selectbox to choose Ticker Symbol (Mode)
         ticker_options = test_df1['symbol'].unique()
         choose_ticker = st.selectbox("Choose Bank:",ticker_options)
@@ -160,21 +160,21 @@ def inference():
         # 'predicted_growth_pct': growth_rate_pct
     })
     result = growth_percent_cal(result_df)
-    st.dataframe(result)
+    # st.dataframe(result)
     with st.expander("Biểu đồ giá dự đoán và thực tế"):
         st.plotly_chart(fig)
     # price_growth_analysis(current_price,predicted_price)
     with st.expander("Tăng trưởng lũy kế"):
         import plotly.express as px
         fig = px.line(result, y=['cumulative_growth_GT', 'cumulative_growth_pred'],
-                    labels={'value': 'Cumulative Growth (%)', 'index': 'Time'},
-                    title='Cumulative Growth: Ground Truth vs Prediction')
+                    labels={'value': 'Phần trăm tăng trưởng (%)', 'index': 'Thời gian'},
+                    title='Biểu đồ tăng trưởng lũy kế: Thực tế vs Mô hình dự đoán')
         st.plotly_chart(fig)
     with st.expander("Tăng trưởng theo ngày"):
         import plotly.express as px
         fig = px.line(result, y=['daily_growth_pct_GT', 'daily_growth_pct_pred'],
-              labels={'value': 'Daily Growth (%)', 'index': 'Time'},
-              title='Daily Growth: Ground Truth vs Prediction')
+              labels={'value': 'Tăng trưởng theo ngày (%)', 'index': 'Thời gian'},
+              title='Biểu đồ tăng trưởng theo ngày: Thực tế vs Mô hình dự đoán')
         st.plotly_chart(fig)
 
 

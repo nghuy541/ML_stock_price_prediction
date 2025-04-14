@@ -96,24 +96,24 @@ def correlation_heatmap():
     numerics = filtered_df.select_dtypes(include='number')
     correlation = numerics.corr()
 
-    # Biểu đồ cột (correlation với close)
-    st.subheader(f"🔍 Tương quan từng chỉ số với giá đóng phiên của ngân hàng {choose_ticker}")
-    correlation_with_close = correlation['close'].drop('close').sort_values()
-    fig_bar = px.bar(
-        correlation_with_close,
-        orientation='h',
-        labels={'index': 'Chỉ số tài chính', 'value': 'Hệ số tương quan'},
-        color=correlation_with_close.values,
-        color_continuous_scale='Tealgrn',
-        title='Hệ số tương quan giữa các chỉ số tài chính và giá đóng phiên'
-    )
-    fig_bar.update_layout(
-        height=500,
-        xaxis_title="Hệ số tương quan",
-        yaxis_title="",
-        title_x=0.5
-    )
-    st.plotly_chart(fig_bar, use_container_width=True)
+    with st.expander(f"🔍 Tương quan từng chỉ số với giá đóng phiên của ngân hàng {choose_ticker}"):
+        # Biểu đồ cột (correlation với close)
+        correlation_with_close = correlation['close'].drop('close').sort_values()
+        fig_bar = px.bar(
+            correlation_with_close,
+            orientation='h',
+            labels={'index': 'Chỉ số tài chính', 'value': 'Hệ số tương quan'},
+            color=correlation_with_close.values,
+            color_continuous_scale='Tealgrn',
+            title='Hệ số tương quan giữa các chỉ số tài chính và giá đóng phiên'
+        )
+        fig_bar.update_layout(
+            height=500,
+            xaxis_title="Hệ số tương quan",
+            yaxis_title="",
+            title_x=0.5
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     # Biểu đồ nhiệt
     with st.expander("🌡️ Biểu đồ nhiệt toàn bộ tương quan"):
@@ -150,23 +150,30 @@ def correlation_heatmap():
 # Main interface
 def main():
     st.set_page_config(page_title="CRM Dashboard", layout="wide")
+    # Inject CSS to hide the default sidebar navigation
+    st.markdown("""
+        <style>
+            [data-testid="stSidebarNav"] {
+                display: none;
+            }
+        </style>
+    """, unsafe_allow_html=True)
     if 'selected_page' not in st.session_state:
         st.session_state.selected_page = "Dashboard"
 
     with st.sidebar:
-        st.header("🔧 Menu")
-        if st.button("🏠 Dashboard"):
+        st.header("🔧 Phụ lục")
+        if st.button("🏠 Trang chủ"):
             st.session_state.selected_page = "Dashboard"
-        if st.button("📁 Prediction"):
+        if st.button("📁 Dự đoán xu hướng"):
             st.session_state.selected_page = "Prediction"
-        if st.button("💬 Support"):
+        if st.button("💬 Hỗ trợ"):
             st.session_state.selected_page = "Support"
         if st.button("💬 Các yếu tố ảnh hưởng đến giá"):
             st.session_state.selected_page = "Factor"
     page = st.session_state.selected_page
     if page == "Dashboard":
         show_dashboard()
-        correlation_heatmap()
     elif page == "Prediction":
         from pages import price_inference
         st.title("📁 Dự đoán xu hướng")
