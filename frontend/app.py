@@ -115,6 +115,9 @@ def correlation_heatmap():
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
+    with st.expander("Giải thích các chỉ số tài chính"):
+        st.image("./frontend/financial_index_formula.jpg", caption="Giải thích các chỉ số", use_column_width=True)
+
     # Biểu đồ nhiệt
     with st.expander("🌡️ Biểu đồ nhiệt toàn bộ tương quan"):
         heatmap_fig = go.Figure(
@@ -171,18 +174,24 @@ def main():
             st.session_state.selected_page = "Support"
         if st.button("💬 Các yếu tố ảnh hưởng đến giá"):
             st.session_state.selected_page = "Factor"
+        if st.button("💬 Thông tin mã cổ phiếu"):
+            st.session_state.selected_page = "stock_info"
     page = st.session_state.selected_page
     if page == "Dashboard":
         show_dashboard()
     elif page == "Prediction":
         from pages import price_inference
         st.title("📁 Dự đoán xu hướng")
-        price_inference.inference()
+        price_inference.run()
     elif page == "Hỗ trợ":
         st.title("💬 Support")
         st.write("Need help? Email us at `support@example.com`.")
     elif page == "Factor":
         correlation_heatmap()
+    elif page == "stock_info":
+        st.title("Biểu đồ tăng trưởng của cổ phiếu")
+        from pages import stock_info
+        stock_info.visualize_chart()
 
 if __name__ == "__main__":
     main()
