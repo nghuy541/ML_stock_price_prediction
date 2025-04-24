@@ -120,7 +120,6 @@ def rank_stock(df):
         top5_df = top5[["symbol", metric]]
         # st.table(top5_df.style.format({metric: "{:.2f}%"}))
         visualize_top5_chart(top5_df,metric)
-
         st.write("Bạn có muốn?")
         help_button = st.button("🧠 Nhờ AI trợ giúp đầu tư", help="Click để nhận gợi ý và nhận định tự động từ AI.")
         chart_button = st.button("📊 Xem biểu đồ xếp hạng cổ phiếu ", help="Click để xem biểu đồ phân tích")
@@ -208,7 +207,7 @@ def process_symbol(symbol, df, model):
     
     return df_symbol
 
-def process_symbol1(symbol, df, model):
+def process_single_symbol(symbol, df, model):
     df_symbol = df[df['symbol'] == symbol].copy()
     df_symbol = add_features(df_symbol)
 
@@ -228,16 +227,15 @@ def process_symbol1(symbol, df, model):
     last_close = df_symbol['close'].iloc[-1]
     last_date = df_symbol['time'].iloc[-1]
     growth_data = growth_analysis(last_close, preds)
-    for result in results:
-        with st.expander(f"📈 Biểu đồ dự đoán trong 1 năm cho {result['symbol']}"):
-            st.plotly_chart(plot_predictions(result['preds'], result['last_date']), use_container_width=True)
-            growth_analysis(result['last_close'], result['preds'])
+    # for result in results:
+    st.plotly_chart(plot_predictions(preds, last_date), use_container_width=True)
+            # growth_analysis(result['last_close'], result['preds'])
 
     # Add growth data as new columns to the DataFrame
-    for data in growth_data:
-        df_symbol[data['label']] = data['growth_pct']
+    # for data in growth_data:
+    #     df_symbol[data['label']] = data['growth_pct']
     
-    return df_symbol
+    # return df_symbol
 
     # return {
     #     'symbol': symbol,
@@ -262,10 +260,8 @@ def plot_rank_stock(df):
         yaxis_title="Tăng trưởng(%)",
         barmode="group"
     )
-
     # Show in Streamlit
     st.plotly_chart(fig)
-
 
 def wrapper(symbol_df_tuple):
     symbol, df = symbol_df_tuple
@@ -314,7 +310,12 @@ def run():
     def thread_worker(symbol):
         return process_symbol(symbol, df, model)
 
-    # choose_stock = st.selectbox("Chọn cổ phiếu:",symbols)
+    with st.expander(f"🏆Phân tích xu hướng tăng trưởng của cổ phiếu"):
+        choose_stock = st.selectbox("Chọn cổ phiếu:",symbols)
+        analyze_trend = st.button("Phân tích xu hướng")
+        if analyze_trend:
+            process_single_symbol(choose_stock, df, model)
+
 
     if os.path.exists(file_path):
         print(f"The file '{file_path}' exists.")
@@ -333,8 +334,6 @@ def run():
         updated_df = pd.concat(results)
         # Save the updated DataFrame to a new CSV file
         updated_df.to_csv("frontend/stock_price_with_growth.csv", index=False)
-
-    
     # for result in results:
     #     st.subheader(f"📈 Dự đoán cho mã {result['symbol']}")
     #     if result['symbol'] == 'ACB':
