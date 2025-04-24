@@ -1,4 +1,4 @@
-index,time,open,high,low,close,volume
+symbol,time,open,high,low,close,volume
 ACB,1/24/2014 0:00,8.23,8.45,8.01,8.14,8417060
 ACB,1/27/2014 0:00,8.1,8.14,7.84,7.97,3240910
 ACB,2/6/2014 0:00,7.88,7.93,7.62,7.62,959590
