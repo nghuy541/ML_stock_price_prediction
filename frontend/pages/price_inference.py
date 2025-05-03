@@ -85,8 +85,8 @@ def batch_forecast_next_days(model, X_batch, scalers_y, n_days):
 def plot_predictions(preds, last_date):
     future_dates = [last_date + timedelta(days=i+1) for i in range(len(preds))]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=future_dates, y=preds, mode='lines+markers', name="Giá dự đoán"))
-    fig.update_layout(title="Biểu đồ giá cổ phiếu dự đoán (1 năm tới)",xaxis_title="Thời gian", yaxis_title="Giá cổ phiếu")
+    fig.add_trace(go.Scatter(x=future_dates, y=preds, mode='lines+markers', name="Price prediction"))
+    fig.update_layout(title="Predicted Stock Chart (1 Year Ahead)",xaxis_title="Time", yaxis_title="Stock price")
     return fig
 
 def visualize_top5_chart(top5_df,metric):
@@ -95,23 +95,23 @@ def visualize_top5_chart(top5_df,metric):
         top5_df,
         x="symbol",
         y=metric,
-        title=f"📊 Top 5 cổ phiếu theo {metric}",
+        title=f"📊 Top 5 stocks by {metric}",
         text=metric,
         color="symbol",
         color_discrete_sequence=px.colors.qualitative.Set2
     )
 
     fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
-    fig.update_layout(yaxis_title="Tăng trưởng (%)", xaxis_title="Mã cổ phiếu", uniformtext_minsize=8, uniformtext_mode='hide')
+    fig.update_layout(yaxis_title="Growth (%)", xaxis_title="Stock symbol", uniformtext_minsize=8, uniformtext_mode='hide')
 
     # Hiển thị trong Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
 def rank_stock(df):
-    with st.expander(f"🏆 Top 5 cổ phiếu có phần trăm tăng trưởng cao"):
+    with st.expander(f"🏆 Top 5 stocks with high growth percentage"):
         # Select metric to rank
-        metric = st.selectbox("Lựa chọn thời gian xếp hạng:", ["7 ngày", "1 tháng", "1 quý"])
-        st.subheader(f"Xếp hạng trong thời gian {metric}")
+        metric = st.selectbox("Select rating time:", ["7 days", "1 month", "1 quarter"])
+        st.subheader(f"Ranking in {metric}")
         # Sort and get top 5
         top5 = df.sort_values(by=metric, ascending=False).head(5).reset_index()
         api_key = 'AIzaSyDKqLGLKVWtgqEC0AsNhjnFWQ6CoL8kvHs'
@@ -120,27 +120,27 @@ def rank_stock(df):
         top5_df = top5[["symbol", metric]]
         # st.table(top5_df.style.format({metric: "{:.2f}%"}))
         visualize_top5_chart(top5_df,metric)
-        st.write("Bạn có muốn?")
-        help_button = st.button("🧠 Nhờ AI trợ giúp đầu tư", help="Click để nhận gợi ý và nhận định tự động từ AI.")
-        chart_button = st.button("📊 Xem biểu đồ xếp hạng cổ phiếu ", help="Click để xem biểu đồ phân tích")
+        st.write("Do you want?")
+        help_button = st.button("🧠 Investing with AI", help="Click to get suggestions and automatic comments from AI.")
+        chart_button = st.button("📊 View stock ranking chart ", help="Click to view analysis chart")
         if help_button:
-            with st.spinner("🤖 Đang phân tích..."):
+            with st.spinner("🤖 Analyzing..."):
                 answer = ai_investment_analysis(top5_df, api_key)
-            st.success("✅ AI đã phân tích xong:")
+            st.success("✅ AI has finished analyzing:")
             st.write(answer)
             investment_goal = st.selectbox(
-                    "🎯 Chọn mục tiêu đầu tư của bạn:",
+                    "🎯 Choose your investment goals:",
                     [
-                        "⚡ Lướt sóng (Ngắn hạn)",
-                        "📆 Trung hạn (tăng trưởng vài tháng)",
-                        "🛡️ Dài hạn (ổn định, ít rủi ro)",
-                        "🚀 Tìm cổ phiếu tăng mạnh",
-                        "💰 Ưu tiên cổ tức đều đặn"
+                        "⚡ Surfing (Short Term)",
+                        "📆 Medium term (growth in a few months)",
+                        "🛡️ Long term (stable, low risk)",
+                        "🚀 Find stocks with strong growth",
+                        "💰 Prefer regular dividends"
                     ],
-                    help="Lựa chọn giúp AI đưa ra gợi ý phù hợp với chiến lược của bạn."
+                    help="Choose to help AI make suggestions that fit your strategy."
                 )
         if chart_button:
-            st.success("✅ Biểu đồ phân tích đã hoàn thành")
+            st.success("✅ Completed analysis chart")
             plot_rank_stock(df)
 
 
@@ -166,18 +166,18 @@ def ai_investment_analysis(df, api_key):
 def growth_analysis(start_price, preds):
     growth_data = []
     days = {
-        "7 ngày": 7,
-        "1 tháng": 21,
-        "1 quý": 63,
-        "1 năm": 252
+        "7 days": 7,
+        "1 month": 21,
+        "1 quarter": 63,
+        "1 year": 252
     }
-    st.header("🔍 Phân tích tăng trưởng dự đoán")
+    st.header("🔍 Forecast growth analysis")
     for label, day in days.items():
         if day < len(preds):
             future_price = preds[day]
             growth_pct = (future_price - start_price) / start_price * 100
             growth_data.append({'label': label, 'growth_pct': f"{growth_pct:.2f}%"})
-            st.metric(label=f"Tăng trưởng sau {label}", value=f"{growth_pct:.2f}%")
+            st.metric(label=f"Growth later {label}", value=f"{growth_pct:.2f}%")
     return growth_data
 
 def process_symbol(symbol, df, model):
@@ -228,7 +228,8 @@ def process_single_symbol(symbol, df, model):
     last_date = df_symbol['time'].iloc[-1]
     growth_data = growth_analysis(last_close, preds)
     # for result in results:
-    st.plotly_chart(plot_predictions(preds, last_date), use_container_width=True)
+    # st.plotly_chart(plot_predictions(preds, last_date), use_container_width=True)
+    # st.plotly_chart(plot_predictions(preds, last_date), use_container_width=True)
             # growth_analysis(result['last_close'], result['preds'])
 
     # Add growth data as new columns to the DataFrame
@@ -255,9 +256,9 @@ def plot_rank_stock(df):
         ))
     # Update layout
     fig.update_layout(
-        title="Trung bình phần trăm tăng trưởng theo mã cổ phiếu",
-        xaxis_title="Mã cổ phiếu",
-        yaxis_title="Tăng trưởng(%)",
+        title="Average percentage growth",
+        xaxis_title="Symbol",
+        yaxis_title="Growth(%)",
         barmode="group"
     )
     # Show in Streamlit
@@ -269,7 +270,7 @@ def wrapper(symbol_df_tuple):
 
 
 def run_bk():
-    st.title("Tổng quan phần trăm tăng trưởng của từng mã cổ phiếu")
+    st.title("Overview of growth percentage")
     file_path = "frontend/stock_price_with_growth.csv"
     df = pd.read_csv("frontend/stock_price.csv")
     df = convert_time(df)
@@ -285,10 +286,10 @@ def run_bk():
         print(f"The file '{file_path}' exists.")
         df = pd.read_csv("frontend/stock_price_with_growth.csv")
         # Remove percentage signs and convert columns to numeric
-        for col in ["7 ngày", "1 tháng", "1 quý"]:
+        for col in ["7 days", "1 month", "1 quarter"]:
             df[col] = df[col].str.replace('%', '').astype(float)
         # Group by symbol and calculate the mean for the 3 columns
-        mean_df = df.groupby("symbol")[["7 ngày", "1 tháng", "1 quý"]].mean().round(2)
+        mean_df = df.groupby("symbol")[["7 days", "1 month", "1 quarter"]].mean().round(2)
         rank_stock(mean_df)
     else:
         # start_time = time.time()
@@ -300,7 +301,7 @@ def run_bk():
         updated_df.to_csv("frontend/stock_price_with_growth.csv", index=False)
     
 def run():
-    st.title("Tổng quan phần trăm tăng trưởng của từng mã cổ phiếu")
+    st.title("Overview of growth percentage")
     file_path = "frontend/stock_price_with_growth.csv"
     df = pd.read_csv("frontend/stock_price.csv")
     df = convert_time(df)
@@ -310,9 +311,9 @@ def run():
     def thread_worker(symbol):
         return process_symbol(symbol, df, model)
 
-    with st.expander(f"🏆Phân tích xu hướng tăng trưởng của cổ phiếu"):
-        choose_stock = st.selectbox("Chọn cổ phiếu:",symbols)
-        analyze_trend = st.button("Phân tích xu hướng")
+    with st.expander(f"🏆Stock growth trend analysis"):
+        choose_stock = st.selectbox("Choose stocks:",symbols)
+        analyze_trend = st.button("Trend analysis")
         if analyze_trend:
             process_single_symbol(choose_stock, df, model)
 
@@ -321,10 +322,10 @@ def run():
         print(f"The file '{file_path}' exists.")
         df = pd.read_csv("frontend/stock_price_with_growth.csv")
         # Remove percentage signs and convert columns to numeric
-        for col in ["7 ngày", "1 tháng", "1 quý"]:
+        for col in ["7 days", "1 month", "1 quarter"]:
             df[col] = df[col].str.replace('%', '').astype(float)
         # Group by symbol and calculate the mean for the 3 columns
-        mean_df = df.groupby("symbol")[["7 ngày", "1 tháng", "1 quý"]].mean().round(2)
+        mean_df = df.groupby("symbol")[["7 days", "1 month", "1 quarter"]].mean().round(2)
         rank_stock(mean_df)
     else:
         # start_time = time.time()

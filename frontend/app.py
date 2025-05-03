@@ -31,7 +31,7 @@ def create_fake_data(n=100):
     return pd.DataFrame(data)
 
 def show_dashboard():
-    st.title("📊 CRM Dashboard - Customer Management")
+    st.title("Welcome to AI-Driven Stock Market Analysis")
     df = create_fake_data(150)
 
     # Overview metrics
@@ -81,45 +81,45 @@ def ai_investment_analysis(ticker, correlation, model_type, api_key):
     return response.text
 
 def correlation_heatmap():
-    st.title("📊 Phân tích tương quan các chỉ số tài chính với giá đóng phiên")
+    st.title("📊 Correlation analysis of financial indicators with closing prices")
     df = load_data()
         
-    with st.expander("Cài đặt"):
+    with st.expander("Setting"):
         # Sidebar or selectbox to choose Ticker Symbol (Mode)
         ticker_options = df['Ticker_symbol'].unique()
-        choose_ticker = st.selectbox("Chọn tên ngân hàng:", ticker_options)
-        choose_model = st.selectbox("Lựa chọn mô hình", ['gemini','llama3'])
-        api_key = st.text_input("Nhập api key của mô hình:",type='password')
-        analyzed_button = st.button("Phân tích")
+        choose_ticker = st.selectbox("Choose Stock Symbol:", ticker_options)
+        choose_model = st.selectbox("Choose Model", ['gemini','llama3'])
+        api_key = st.text_input("Enter the model's api key:",type='password')
+        analyzed_button = st.button("Analyze")
 
     filtered_df = df[df['Ticker_symbol'] == choose_ticker]
     numerics = filtered_df.select_dtypes(include='number')
     correlation = numerics.corr()
 
-    with st.expander(f"🔍 Tương quan từng chỉ số với giá đóng phiên của ngân hàng {choose_ticker}"):
+    with st.expander(f"🔍 The correlation of each indicator with the stock's closing price {choose_ticker}"):
         # Biểu đồ cột (correlation với close)
         correlation_with_close = correlation['close'].drop('close').sort_values()
         fig_bar = px.bar(
             correlation_with_close,
             orientation='h',
-            labels={'index': 'Chỉ số tài chính', 'value': 'Hệ số tương quan'},
+            labels={'index': 'financial index', 'value': 'Correlation factor'},
             color=correlation_with_close.values,
             color_continuous_scale='Tealgrn',
-            title='Hệ số tương quan giữa các chỉ số tài chính và giá đóng phiên'
+            title='Correlation factor between financial indicators and closing prices'
         )
         fig_bar.update_layout(
             height=500,
-            xaxis_title="Hệ số tương quan",
+            xaxis_title="Correlation factor",
             yaxis_title="",
             title_x=0.5
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    with st.expander("Giải thích các chỉ số tài chính"):
-        st.image("./frontend/financial_index_formula.jpg", caption="Giải thích các chỉ số", use_column_width=True)
+    with st.expander("Explaining financial ratio"):
+        st.image("./frontend/financial_index_formula.jpg", caption="Explaining financial ratio", use_column_width=True)
 
     # Biểu đồ nhiệt
-    with st.expander("🌡️ Biểu đồ nhiệt toàn bộ tương quan"):
+    with st.expander("🌡️ Correlation heatmap"):
         heatmap_fig = go.Figure(
             data=go.Heatmap(
                 z=correlation.values,
@@ -128,13 +128,13 @@ def correlation_heatmap():
                 colorscale='YlGnBu',
                 zmin=-1,
                 zmax=1,
-                colorbar=dict(title='Hệ số tương quan'),
+                colorbar=dict(title='Correlation factor'),
                 hoverongaps=False
             )
         )
         heatmap_fig.update_layout(
             height=700,
-            title='Biểu đồ nhiệt thể hiện mối tương quan giữa các chỉ số tài chính',
+            title='Heatmap shows the correlation between financial indicators',
             title_x=0.5,
             xaxis=dict(tickangle=-45),
             margin=dict(l=50, r=50, t=80, b=50)
@@ -142,17 +142,17 @@ def correlation_heatmap():
         st.plotly_chart(heatmap_fig, use_container_width=True)
     # Phân tích AI
     if analyzed_button:
-        st.subheader("💡 Phân tích đầu tư từ AI")
-        with st.spinner("🤖 Đang phân tích với mô hình AI..."):
+        st.subheader("💡 Investment Analysis from AI")
+        with st.spinner("🤖 Analyzing with AI model..."):
             ai_result = ai_investment_analysis(choose_ticker, correlation_with_close, choose_model, api_key)
-            st.success("✅ Phân tích hoàn tất!")
+            st.success("✅ Analysis completed!")
             st.markdown(ai_result)
     else:
-        st.warning("🔐 Vui lòng nhập API Key để kích hoạt phân tích AI.")
+        st.warning("🔐 Please enter API Key to enable AI analysis.")
 
 # Main interface
 def main():
-    st.set_page_config(page_title="CRM Dashboard", layout="wide")
+    st.set_page_config(page_title="Welcome to AI-Driven Stock Market Analysis", layout="wide")
     # Inject CSS to hide the default sidebar navigation
     st.markdown("""
         <style>
@@ -165,31 +165,31 @@ def main():
         st.session_state.selected_page = "Dashboard"
 
     with st.sidebar:
-        st.header("🔧 Phụ lục")
-        if st.button("🏠 Trang chủ"):
+        st.header("🔧 Note")
+        if st.button("🏠 Home page"):
             st.session_state.selected_page = "Dashboard"
-        if st.button("📁 Dự đoán xu hướng"):
+        if st.button("📁 Trend prediction"):
             st.session_state.selected_page = "Prediction"
-        if st.button("💬 Hỗ trợ"):
+        if st.button("💬 Support"):
             st.session_state.selected_page = "Support"
-        if st.button("💬 Các yếu tố ảnh hưởng đến giá"):
+        if st.button("💬 Factor"):
             st.session_state.selected_page = "Factor"
-        if st.button("💬 Thông tin mã cổ phiếu"):
+        if st.button("💬 Stock Infomation"):
             st.session_state.selected_page = "stock_info"
     page = st.session_state.selected_page
     if page == "Dashboard":
         show_dashboard()
     elif page == "Prediction":
         from pages import price_inference
-        st.title("📁 Dự đoán xu hướng")
+        st.title("📁 Trend prediction")
         price_inference.run()
-    elif page == "Hỗ trợ":
+    elif page == "Support":
         st.title("💬 Support")
         st.write("Need help? Email us at `support@example.com`.")
     elif page == "Factor":
         correlation_heatmap()
     elif page == "stock_info":
-        st.title("Biểu đồ tăng trưởng của cổ phiếu")
+        st.title("Stock Growth Chart")
         from pages import stock_info
         stock_info.visualize_chart()
 

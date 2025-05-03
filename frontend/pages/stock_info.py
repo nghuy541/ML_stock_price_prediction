@@ -18,10 +18,10 @@ def visualize_chart():
     years = list(range(2014, 2025))  # [2004, 2005, ..., 2025]
     year_stamp = [str(year) for year in years]
     # year_stamp = 
-    with st.expander("Chọn cổ phiếu"):
+    with st.expander("Choose symbol"):
         symbols = df['symbol'].unique()
-        symbol = st.selectbox("Chọn mã cổ phiếu", symbols)
-        choose_year = st.selectbox("Chọn năm:", year_stamp)
+        symbol = st.selectbox("Choose symbol", symbols)
+        choose_year = st.selectbox("Year:", year_stamp)
         # time_stamp = {
         #     "1 tuần": pd.DateOffset(weeks=1),
         #     "1 tháng": pd.DateOffset(months=1),
@@ -30,7 +30,7 @@ def visualize_chart():
         # }
         # time_label = st.selectbox("Chọn khoảng thời gian:", list(time_stamp.keys()))
         quarter_options = ['Q1', 'Q2', 'Q3', 'Q4']
-        selected_quarter = st.selectbox("Chọn quý:", quarter_options)
+        selected_quarter = st.selectbox("Choose quarter:", quarter_options)
         quarter_map = {
                 'Q1': 1,
                 'Q2': 2,
@@ -47,8 +47,8 @@ def visualize_chart():
     df_symbol_display['year'] = df_symbol_display['date'].dt.year.astype(str)
     df_symbol_display = df_symbol_display[df_symbol_display['year'] == choose_year]
     df_quarter = df_symbol_display[df_symbol_display['quarter'] == selected_q_number]
-    with st.expander(f"📈📊 Biểu đồ giá Close - {selected_quarter} năm {choose_year}"):
-        fig = px.line(df_quarter, x='date', y='close', title='Biểu đồ giá cổ phiếu (Close)')
+    with st.expander(f"📈📊 Close chart - {selected_quarter} year {choose_year}"):
+        fig = px.line(df_quarter, x='date', y='close', title='Growth chart (Close)')
         fig.update_traces(line_color='green')
         st.plotly_chart(fig, use_container_width=True)
     
