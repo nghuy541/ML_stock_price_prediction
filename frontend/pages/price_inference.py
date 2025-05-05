@@ -316,7 +316,6 @@ def run():
         if analyze_trend:
             process_single_symbol(choose_stock, df, model)
 
-
     if os.path.exists(file_path):
         print(f"The file '{file_path}' exists.")
         df = pd.read_csv("frontend/stock_price_with_growth.csv")

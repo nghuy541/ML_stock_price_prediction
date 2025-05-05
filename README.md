@@ -25,5 +25,9 @@ Kích hoạt môi trường
 ```       
 Cài đặt thư viện                                               
 ```shell
-pip install -r requirements.txt                                                                              
-```    
+pip install -r Frontend/requirements.txt                                                                              
+```
+## Chạy chương trình
+```shell
+streamlit run frontend/app.py                                                                                               
+```
