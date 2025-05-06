@@ -206,7 +206,120 @@ def process_symbol(symbol, df, model):
         df_symbol[data['label']] = data['growth_pct']
     return df_symbol
 
+class LSTMPipeline():
+    def __init__(self,df,features_cols,target_cols,symbol):
+        self.df = df
+        self.label_encoder = LabelEncoder()
+        self.symbol = symbol
+        self.features_cols = features_cols
+        self.target_cols = target_cols
+        self.scaler_x = MinMaxScaler()
+        self.scaler_y = MinMaxScaler()
+        self.lstm_model = self.init_model()
 
+    def group_stock_by_symbol(self):
+        df = self.df[self.df['symbol'] == self.symbol].copy()
+        return df
+
+    def init_model(self):
+        # Load model và scaler 1 lần ngoài vòng lặp
+        model = load_model("frontend/models/lstm_model_ver1.keras")
+        return model
+    
+    def add_features(self,data):
+        data['lag_1'] = data['close'].shift(1)
+        data['lag_2'] = data['close'].shift(2)
+        data['rolling_mean_3'] = data['close'].rolling(window=3).mean()
+        data['rolling_std_3'] = data['close'].rolling(window=3).std()
+        data['momentum_1'] = data['close'].diff()
+        data.fillna(method='bfill', inplace=True)
+        data.fillna(0, inplace=True)
+        return data
+
+    def normalize_data(self,df,features_cols,target_cols):
+        X_scaled = self.scaler_x.fit_transform(df[features_cols])
+        y_scaled = self.scaler_y.fit_transform(df[[target_cols]])
+        return X_scaled, y_scaled
+    
+    def create_features(self,df):
+        df = self.add_features(df)
+        df['index_encoded'] = self.label_encoder.fit_transform(df['symbol'])
+        return df
+
+    def forecast_next_days(self, data, scaler_y, y_test,n_days):
+        last_sequence = data[-60:]  # (60, num_features)
+        num_features = last_sequence.shape[1]
+        predictions = []
+
+        for _ in range(n_days):
+            input_seq = np.expand_dims(last_sequence, axis=0)  # (1, 60, num_features)
+            pred_scaled = self.lstm_model.predict(input_seq)  # (1, 1)
+            pred_scaled = pred_scaled.reshape(-1, 1)
+            pred = scaler_y.inverse_transform(pred_scaled)[0][0]
+            predictions.append(pred)
+
+            # Cập nhật: tạo 1 step mới lặp lại pred_scaled thành 1 dòng có num_features
+            new_step = np.tile(pred_scaled[0], (1, num_features))  # (1, num_features)
+            last_sequence = np.append(last_sequence[1:], new_step, axis=0)
+        # ✅ Inverse transform y_test here
+        y_test_inversed = scaler_y.inverse_transform(y_test.reshape(-1, 1))#.flatten()
+        return predictions,y_test_inversed
+
+    def plot_predictions_with_growth(self,y_true, y_pred, periods=[7, 21, 63, 252]):
+        """
+        y_true: np.array, shape (n, 1) — inverse-transformed ground truth
+        y_pred: np.array, shape (n, 1) — inverse-transformed predicted values
+        periods: list of time horizons (in days)
+        """
+        y_true = np.array(y_true).flatten()
+        y_pred = np.array(y_pred).flatten()
+        days = np.arange(1, len(y_pred) + 1)
+
+        fig = go.Figure()
+
+        # Add traces
+        fig.add_trace(go.Scatter(x=days, y=y_true, mode='lines+markers', name='Ground Truth', line=dict(color='blue')))
+        fig.add_trace(go.Scatter(x=days, y=y_pred, mode='lines+markers', name='Predicted', line=dict(color='orange', dash='dash')))
+
+        # Add growth percent annotations
+        for period in periods:
+            if len(y_pred) > period:
+                start_price = y_pred[0]
+                future_price = y_pred[period]
+                growth = ((future_price - start_price) / start_price) * 100
+
+                fig.add_annotation(
+                    x=period,
+                    y=future_price,
+                    text=f"{period}d: {growth:.2f}%",
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowcolor='green' if growth >= 0 else 'red',
+                    font=dict(color='green' if growth >= 0 else 'red'),
+                    ax=0,
+                    ay=-40
+                )
+
+        fig.update_layout(
+            title='📈 Predicted vs Ground Truth Prices with Growth %',
+            xaxis_title='Days',
+            yaxis_title='Price',
+            legend=dict(x=0.01, y=0.99),
+            template='plotly_white'
+        )
+
+        fig.show()
+
+    def run(self):
+        df = self.group_stock_by_symbol()
+        df = self.create_features(df)
+        X_scaled, y_scaled = self.normalize_data(df,self.features_cols,self.target_cols)
+        # Inverse transform y_test using the same scaler
+        # y_test_inversed = self.target_scaler.inverse_transform(y_test)  
+        y_pred,y_test= self.forecast_next_days(X_scaled,self.scaler_y,y_scaled,60)
+        self.plot_predictions_with_growth(y_test, y_pred, periods=[7, 21, 63, 252])
+        return y_pred,y_test
 
 class XGboostPipeline():
     def __init__(self,df,features_cols,target_cols,symbol):
@@ -415,7 +528,6 @@ class XGboostPipeline():
         inversed_y_pred,inversed_y_gt= self.forecast_price(X_test,y_test)
         return inversed_y_pred,inversed_y_gt
 
-
 def process_single_symbol(symbol, df, model):
     df_symbol = df[df['symbol'] == symbol].copy()
     df_symbol = add_features(df_symbol)
@@ -530,8 +642,14 @@ def run():
         analyze_trend = st.button("Trend analysis")
         if analyze_trend:
             if choose_model == 'lstm':
-                model = load_model("frontend/models/lstm_model_ver1.keras")
-                process_single_symbol(choose_stock, df, model)
+                pipeline = LSTMPipeline(df,features,target,choose_stock)
+                # model = load_model("frontend/models/lstm_model_ver1.keras")
+                # process_single_symbol(choose_stock, df, model)
+                # X_scaled, y_scaled,pred = pipeline.run()
+                pred,y_scale = pipeline.run()
+                # st.write(f'{X_scaled.shape}|{y_scaled.shape}|{pred.shape}')
+                st.write(f'{pred}|{y_scale}')
+
             if choose_model == 'xgboost':
                 pipeline = XGboostPipeline(df,features,target,choose_stock)
                 inversed_y_pred,inversed_y_gt= pipeline.run()
