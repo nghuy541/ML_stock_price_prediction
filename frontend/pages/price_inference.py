@@ -273,7 +273,7 @@ class LSTMPipeline():
         y_test_inversed = scaler_y.inverse_transform(y_test.reshape(-1, 1))#.flatten()
         return predictions,y_test_inversed
 
-    def plot_predictions_with_growth(self,y_true, y_pred, periods=[7, 21, 63, 252]):
+    def plot_predictions_with_growth_bk(self,y_true, y_pred, periods=[7, 21, 63, 252]):
         """
         y_true: np.array, shape (n, 1) — inverse-transformed ground truth
         y_pred: np.array, shape (n, 1) — inverse-transformed predicted values
@@ -317,7 +317,193 @@ class LSTMPipeline():
             template='plotly_white'
         )
 
-        fig.show()
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+    def plot_predictions_with_growth_bk1(self, y_true, y_pred):
+        """
+        y_true: np.array, shape (n, 1) — inverse-transformed ground truth
+        y_pred: np.array, shape (n, 1) — inverse-transformed predicted values
+        """
+        import numpy as np
+        import plotly.graph_objects as go
+
+        y_true = np.array(y_true).flatten()
+        y_pred = np.array(y_pred).flatten()
+        days = np.arange(1, len(y_pred) + 1)
+
+        # Growth time points in days
+        growth_days = {
+            'start_day': 0,
+            '7 days': 7,
+            '1 month': 21,
+            '1 quarter': 63,
+            '1 year': 252
+        }
+
+        fig = go.Figure()
+
+        # Add predicted trace
+        fig.add_trace(go.Scatter(x=days, y=y_pred, mode='lines+markers',
+                                name='Predicted', line=dict(color='orange', dash='dash')))
+
+        skipped_labels = []
+
+        for label, day_offset in growth_days.items():
+            if len(y_pred) > day_offset:
+                price = y_pred[day_offset]
+                if label == 'start_day':
+                    fig.add_annotation(
+                        x=day_offset,
+                        y=price,
+                        text=f"Start: {price:.2f}",
+                        showarrow=True,
+                        arrowhead=1,
+                        arrowsize=1,
+                        arrowcolor='blue',
+                        font=dict(color='blue'),
+                        ax=0,
+                        ay=-40
+                    )
+                else:
+                    start_price = y_pred[0]
+                    growth = ((price - start_price) / start_price) * 100
+                    fig.add_annotation(
+                        x=day_offset,
+                        y=price,
+                        text=f"{label}: {growth:.2f}%",
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowcolor='green' if growth >= 0 else 'red',
+                        font=dict(color='green' if growth >= 0 else 'red'),
+                        ax=0,
+                        ay=-40
+                    )
+            else:
+                skipped_labels.append(label)
+                print(f"⚠️ Skipped '{label}' ({day_offset}d): only {len(y_pred)} days of data.")
+
+        if skipped_labels:
+            fig.add_annotation(
+                x=len(y_pred),
+                y=max(y_pred),
+                text=f"Skipped: {', '.join(skipped_labels)}",
+                showarrow=False,
+                font=dict(color='gray', size=12),
+                xanchor='right',
+                yanchor='bottom'
+            )
+
+        fig.update_layout(
+            title='📈 Predicted vs Ground Truth Prices with Growth %',
+            xaxis_title='Days',
+            yaxis_title='Price',
+            legend=dict(x=0.01, y=0.99),
+            template='plotly_white'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    def plot_predictions_with_growth(self, y_true, y_pred):
+        """
+        y_true: np.array, shape (n, 1) — inverse-transformed ground truth
+        y_pred: np.array, shape (n, 1) — inverse-transformed predicted values
+        """
+        import numpy as np
+        import plotly.graph_objects as go
+        import streamlit as st
+
+        y_true = np.array(y_true).flatten()
+        y_pred = np.array(y_pred).flatten()
+        days = np.arange(1, len(y_pred) + 1)
+
+        # Growth time points in days
+        growth_days = {
+            'start_day': 0,
+            '7 days': 7,
+            '1 month': 21,
+            '1 quarter': 63,
+            '1 year': 252
+        }
+
+        fig = go.Figure()
+
+        # Add predicted trace
+        fig.add_trace(go.Scatter(x=days, y=y_pred, mode='lines+markers',
+                                name='Predicted', line=dict(color='orange', dash='dash')))
+
+        skipped_labels = []
+        metric_labels = []
+        metric_values = []
+        metric_deltas = []
+
+        for label, day_offset in growth_days.items():
+            if len(y_pred) > day_offset:
+                price = y_pred[day_offset]
+                if label == 'start_day':
+                    fig.add_annotation(
+                        x=day_offset,
+                        y=price,
+                        text=f"Start: {price:.2f}",
+                        showarrow=True,
+                        arrowhead=1,
+                        arrowsize=1,
+                        arrowcolor='blue',
+                        font=dict(color='blue'),
+                        ax=0,
+                        ay=-40
+                    )
+                else:
+                    start_price = y_pred[0]
+                    growth_pct = ((price - start_price) / start_price) * 100
+                    fig.add_annotation(
+                        x=day_offset,
+                        y=price,
+                        text=f"{label}: {growth_pct:.2f}%",
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowcolor='green' if growth_pct >= 0 else 'red',
+                        font=dict(color='green' if growth_pct >= 0 else 'red'),
+                        ax=0,
+                        ay=-40
+                    )
+                    # Store metrics for display later
+                    metric_labels.append(f"Growth after {label}")
+                    metric_values.append(f"{growth_pct:.2f}%")
+                    metric_deltas.append(f"{growth_pct:.2f}%")
+            else:
+                skipped_labels.append(label)
+                print(f"⚠️ Skipped '{label}' ({day_offset}d): only {len(y_pred)} days of data.")
+
+        # Display metrics in columns
+        if metric_labels:
+            cols = st.columns(len(metric_labels))
+            for col, label, value, delta in zip(cols, metric_labels, metric_values, metric_deltas):
+                col.metric(label=label, value=value, delta=delta)
+
+        # Show skipped note on plot
+        if skipped_labels:
+            fig.add_annotation(
+                x=len(y_pred),
+                y=max(y_pred),
+                text=f"Skipped: {', '.join(skipped_labels)}",
+                showarrow=False,
+                font=dict(color='gray', size=12),
+                xanchor='right',
+                yanchor='bottom'
+            )
+
+        fig.update_layout(
+            title='📈 Predicted vs Ground Truth Prices with Growth %',
+            xaxis_title='Days',
+            yaxis_title='Price',
+            legend=dict(x=0.01, y=0.99),
+            template='plotly_white'
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
 
     def run(self):
         df = self.group_stock_by_symbol()
@@ -326,7 +512,7 @@ class LSTMPipeline():
         # Inverse transform y_test using the same scaler
         # y_test_inversed = self.target_scaler.inverse_transform(y_test)  
         y_pred,y_test= self.forecast_next_days(X_scaled,self.scaler_y,y_scaled,60)
-        self.plot_predictions_with_growth(y_test, y_pred, periods=[7, 21, 63, 252])
+        self.plot_predictions_with_growth(y_test, y_pred)
         return y_pred,y_test
 
 class XGboostPipeline():
@@ -498,6 +684,7 @@ class XGboostPipeline():
                         y=start_price,
                         text=f"{label}: {growth_pct:.2f}%",
                         showarrow=True,
+                        arrowcolor='green' if growth_pct >= 0 else 'red',
                         arrowhead=1,
                         ax=0,
                         ay=-40,
@@ -510,6 +697,7 @@ class XGboostPipeline():
                         y=future_price,
                         text=f"{label}: {growth_pct:.2f}%",
                         showarrow=True,
+                        arrowcolor='green' if growth_pct >= 0 else 'red',
                         arrowhead=1,
                         ax=0,
                         ay=-40,
