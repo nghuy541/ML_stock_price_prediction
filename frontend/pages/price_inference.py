@@ -108,37 +108,45 @@ def visualize_top5_chart(top5_df,metric):
     st.plotly_chart(fig, use_container_width=True)
 
 def rank_stock(df):
-    with st.expander(f"🏆 Top 5 stocks with high growth percentage"):
+    with st.expander(f"🏆 Top stocks with high growth percentage"):
+        # Cho người dùng chọn số lượng top cổ phiếu
+        top_n = st.selectbox("🔢 How many top stocks to display?", [3, 5, 10, 15, 20], index=1)
+
         # Select metric to rank
-        metric = st.selectbox("Select rating time:", ["7 days", "1 month", "1 quarter"])
-        st.subheader(f"Ranking in {metric}")
-        # Sort and get top 5
-        top5 = df.sort_values(by=metric, ascending=False).head(5).reset_index()
+        metric = st.selectbox("📅 Select rating time:", ["7 days", "1 month", "1 quarter"])
+        st.subheader(f"Ranking in {metric} (Top {top_n})")
+
+        # Sort and get top N
+        topN_df = df.sort_values(by=metric, ascending=False).head(top_n).reset_index()
+        topN_df.index += 1  # Start ranking from 1
+
         api_key = 'AIzaSyDKqLGLKVWtgqEC0AsNhjnFWQ6CoL8kvHs'
-        top5.index += 1  # Start ranking from 1
-        # Display table
-        top5_df = top5[["symbol", metric]]
-        # st.table(top5_df.style.format({metric: "{:.2f}%"}))
-        visualize_top5_chart(top5_df,metric)
+        display_df = topN_df[["symbol", metric]]
+
+        # Hiển thị biểu đồ và bảng
+        visualize_top5_chart(display_df, metric)  # bạn có thể rename hàm thành `visualize_topN_chart`
         st.write("Do you want?")
+
         help_button = st.button("🧠 Investing with AI", help="Click to get suggestions and automatic comments from AI.")
         chart_button = st.button("📊 View stock ranking chart ", help="Click to view analysis chart")
+
         if help_button:
             with st.spinner("🤖 Analyzing..."):
-                answer = ai_investment_analysis(top5_df, api_key)
+                answer = ai_investment_analysis(display_df, api_key)
             st.success("✅ AI has finished analyzing:")
             st.write(answer)
             investment_goal = st.selectbox(
-                    "🎯 Choose your investment goals:",
-                    [
-                        "⚡ Surfing (Short Term)",
-                        "📆 Medium term (growth in a few months)",
-                        "🛡️ Long term (stable, low risk)",
-                        "🚀 Find stocks with strong growth",
-                        "💰 Prefer regular dividends"
-                    ],
-                    help="Choose to help AI make suggestions that fit your strategy."
-                )
+                "🎯 Choose your investment goals:",
+                [
+                    "⚡ Surfing (Short Term)",
+                    "📆 Medium term (growth in a few months)",
+                    "🛡️ Long term (stable, low risk)",
+                    "🚀 Find stocks with strong growth",
+                    "💰 Prefer regular dividends"
+                ],
+                help="Choose to help AI make suggestions that fit your strategy."
+            )
+
         if chart_button:
             st.success("✅ Completed analysis chart")
             plot_rank_stock(df)
@@ -278,7 +286,7 @@ class LSTMPipeline():
         fig = go.Figure()
 
         # Add traces
-        fig.add_trace(go.Scatter(x=days, y=y_true, mode='lines+markers', name='Ground Truth', line=dict(color='blue')))
+        # fig.add_trace(go.Scatter(x=days, y=y_true, mode='lines+markers', name='Ground Truth', line=dict(color='blue')))
         fig.add_trace(go.Scatter(x=days, y=y_pred, mode='lines+markers', name='Predicted', line=dict(color='orange', dash='dash')))
 
         # Add growth percent annotations
@@ -648,7 +656,6 @@ def run():
                 # X_scaled, y_scaled,pred = pipeline.run()
                 pred,y_scale = pipeline.run()
                 # st.write(f'{X_scaled.shape}|{y_scaled.shape}|{pred.shape}')
-                st.write(f'{pred}|{y_scale}')
 
             if choose_model == 'xgboost':
                 pipeline = XGboostPipeline(df,features,target,choose_stock)
