@@ -12,9 +12,9 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
 from google import genai
+import joblib
 
-# Load model và scaler 1 lần ngoài vòng lặp
-model = load_model("frontend/models/lstm_model_ver1.keras")
+
 
 # ========== Helper ==========
 def convert_time(data):
@@ -204,13 +204,221 @@ def process_symbol(symbol, df, model):
     # Add growth data as new columns to the DataFrame
     for data in growth_data:
         df_symbol[data['label']] = data['growth_pct']
-    
     return df_symbol
+
+
+
+class XGboostPipeline():
+    def __init__(self,df,features_cols,target_cols,symbol):
+        self.df = df
+        self.label_encoder = LabelEncoder()
+        self.symbol = symbol
+        self.features_cols = features_cols
+        self.target_cols = target_cols
+        self.scaler_x = MinMaxScaler()
+        self.scaler_y = MinMaxScaler()
+        self.xgb_model = self.init_model()
+
+    def group_stock_by_symbol(self):
+        df = self.df[self.df['symbol'] == self.symbol].copy()
+        return df
+
+    def add_features(self,data):
+        data['lag_1'] = data['close'].shift(1)
+        data['lag_2'] = data['close'].shift(2)
+        data['rolling_mean_3'] = data['close'].rolling(window=3).mean()
+        data['rolling_std_3'] = data['close'].rolling(window=3).std()
+        data['momentum_1'] = data['close'].diff()
+        data.fillna(method='bfill', inplace=True)
+        data.fillna(0, inplace=True)
+        return data
+
+    def create_features(self,df):
+        df = self.add_features(df)
+        df['index_encoded'] = self.label_encoder.fit_transform(df['symbol'])
+        return df
+
+    def normalize_data(self,df,features_cols,target_cols):
+        X_scaled = self.scaler_x.fit_transform(df[features_cols])
+        y_scaled = self.scaler_y.fit_transform(df[[target_cols]])
+        return X_scaled, y_scaled
+
+    def preprocess_input_data(self,X_scaled, y_scaled):
+        X_test_all, y_test_all = [], []
+        X_test_all.append(X_scaled)
+        y_test_all.append(y_scaled.ravel())
+        X_test_final = np.concatenate(X_test_all)
+        y_test_final = np.concatenate(y_test_all)
+        return X_test_final,y_test_final
+
+    def init_model(self):
+        # Load model và scaler 1 lần ngoài vòng lặp
+        xgb_model = joblib.load('frontend/models/xgboost_model.pkl')
+        return xgb_model
+
+    def inverse_to_price(self,price):
+        inversed_prices = self.scaler_y.inverse_transform(price.reshape(1,-1))
+        return inversed_prices
+
+    def forecast_price(self,X_test,y_test):
+        preds = self.xgb_model.predict(X_test)
+        inversed_y_pred= self.inverse_to_price(preds)
+        inversed_y_gt = self.inverse_to_price(y_test)
+        return inversed_y_pred,inversed_y_gt
+
+    def growth_analysis(self,preds,start_price=None):
+        growth_data = []
+        days = {
+            "7 days": 7,
+            "1 month": 21,
+            "1 quarter": 63,
+            "1 year": 252
+        }
+
+        # Convert to NumPy array and flatten
+        preds = np.array(preds).flatten()
+
+        # Use first prediction as start price if not given
+        if start_price is None:
+            start_price = preds[0]
+
+        st.header("🔍 Forecast Growth Analysis")
+        
+        for label, day in days.items():
+            if day <= len(preds):  # Make sure we don't exceed the prediction horizon
+                future_price = preds[day - 1]  # 0-based indexing
+                growth_pct = (future_price - start_price) / start_price * 100
+                growth_data.append({'label': label, 'growth_pct': f"{growth_pct:.2f}%"})
+                st.metric(label=f"Growth after {label}", value=f"{growth_pct:.2f}%")
+            else:
+                st.warning(f"Not enough prediction data for {label} ({day} days)")
+
+        return growth_data
+
+
+
+    def plot_chart1(self,preds,truth):
+        import streamlit as st
+        import plotly.graph_objects as go
+        import numpy as np
+
+        # Flatten in case they're nested
+        preds = np.array(preds).flatten()
+        truth = np.array(truth).flatten()
+
+        # Generate x-axis (Day 1 to Day 7)
+        days = list(range(1, len(preds) + 1))
+
+        # Create figure
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=days, y=truth, mode='lines+markers', name='Ground Truth',
+            line=dict(color='blue', width=2)
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=days, y=preds, mode='lines+markers', name='Predicted',
+            line=dict(color='orange', width=2, dash='dash')
+        ))
+
+        # Customize layout
+        fig.update_layout(
+            title='📈 Predicted vs Ground Truth Prices',
+            xaxis_title='Days',
+            yaxis_title='Price',
+            legend=dict(x=0.01, y=0.99),
+            template='plotly_white'
+        )
+
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+    
+    def plot_chart(self, preds):
+        import streamlit as st
+        import plotly.graph_objects as go
+        import numpy as np
+
+        # Sample predicted prices
+        preds = np.array(preds).flatten()[:300]
+
+        # Start price (e.g., the latest known actual price before prediction)
+        start_price = preds[0]
+
+        # Growth time points in days (assuming 1 prediction per day)
+        growth_days = {
+            'start_day': 0,
+            "7 days": 7,
+            "1 month": 21,
+            "1 quarter": 63,
+            "1 year": 252
+        }
+
+        # Create x-axis
+        days = list(range(1, len(preds) + 1))
+
+        # Create figure
+        fig = go.Figure()
+
+        # Add prediction line
+        fig.add_trace(go.Scatter(
+            x=days, y=preds, mode='lines+markers', name='Predicted Price',
+            line=dict(color='orange', width=2, dash='dash')
+        ))
+
+        # Add annotations for percent growth
+        for label, day in growth_days.items():
+            if day <= len(preds):
+                future_price = preds[day - 1]
+                if label == 'start_day':
+                    growth_pct = 0
+                    fig.add_annotation(
+                        x=day,
+                        y=start_price,
+                        text=f"{label}: {growth_pct:.2f}%",
+                        showarrow=True,
+                        arrowhead=1,
+                        ax=0,
+                        ay=-40,
+                        font=dict(color="green" if growth_pct >= 0 else "red")
+                    )
+                else:
+                    growth_pct = (future_price - start_price) / start_price * 100
+                    fig.add_annotation(
+                        x=day,
+                        y=future_price,
+                        text=f"{label}: {growth_pct:.2f}%",
+                        showarrow=True,
+                        arrowhead=1,
+                        ax=0,
+                        ay=-40,
+                        font=dict(color="green" if growth_pct >= 0 else "red")
+                    )
+
+        # Customize layout
+        fig.update_layout(
+            title='📈 Predicted Price with Growth Annotations',
+            xaxis_title='Days',
+            yaxis_title='Price',
+            template='plotly_white'
+        )
+
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+
+    def run(self):
+        df = self.group_stock_by_symbol()
+        df = self.create_features(df)
+        X_scaled, y_scaled = self.normalize_data(df,self.features_cols,self.target_cols)
+        X_test,y_test = self.preprocess_input_data(X_scaled, y_scaled)
+        inversed_y_pred,inversed_y_gt= self.forecast_price(X_test,y_test)
+        return inversed_y_pred,inversed_y_gt
+
 
 def process_single_symbol(symbol, df, model):
     df_symbol = df[df['symbol'] == symbol].copy()
     df_symbol = add_features(df_symbol)
-
     label_encoder = LabelEncoder()
     df_symbol['index_encoded'] = label_encoder.fit_transform(df_symbol['symbol'])
 
@@ -222,6 +430,7 @@ def process_single_symbol(symbol, df, model):
     scaler_y = MinMaxScaler()
     X_scaled = scaler_x.fit_transform(df_symbol[features])
     y_scaled = scaler_y.fit_transform(df_symbol[[target]])
+    # X_scaled,y_scaled,scaler_x,scaler_y = preprocess_and_normalize_data(df_symbol,features,target)
     preds = forecast_next_days(model, X_scaled, scaler_x, scaler_y, n_days=252)
     # preds = batch_forecast_next_days(model, X_scaled, scaler_x, scaler_y, n_days=252)
     last_close = df_symbol['close'].iloc[-1]
@@ -306,21 +515,32 @@ def run():
     df = pd.read_csv("frontend/stock_price.csv")
     df = convert_time(df)
     symbols = df['symbol'].unique()
-    model = load_model("frontend/models/lstm_model_ver1.keras")
+    # rf_model = joblib.load('frontend/models/random_forest_model.pkl')
+    list_model = ['lstm','xgboost']
+    features = ['open', 'high', 'low', 'volume', 'index_encoded',
+                'lag_1', 'lag_2', 'rolling_mean_3', 'rolling_std_3', 'momentum_1']
+    target = 'close'
 
     def thread_worker(symbol):
         return process_symbol(symbol, df, model)
 
     with st.expander(f"🏆Stock growth trend analysis"):
         choose_stock = st.selectbox("Choose stocks:",symbols)
+        choose_model = st.selectbox("Choose models:",list_model)
         analyze_trend = st.button("Trend analysis")
         if analyze_trend:
-            process_single_symbol(choose_stock, df, model)
-
+            if choose_model == 'lstm':
+                model = load_model("frontend/models/lstm_model_ver1.keras")
+                process_single_symbol(choose_stock, df, model)
+            if choose_model == 'xgboost':
+                pipeline = XGboostPipeline(df,features,target,choose_stock)
+                inversed_y_pred,inversed_y_gt= pipeline.run()
+                growth_data = pipeline.growth_analysis(inversed_y_pred)
+                pipeline.plot_chart(inversed_y_pred)
 
     if os.path.exists(file_path):
         print(f"The file '{file_path}' exists.")
-        df = pd.read_csv("frontend/stock_price_with_growth.csv")
+        df = pd.read_csv(file_path)
         # Remove percentage signs and convert columns to numeric
         for col in ["7 days", "1 month", "1 quarter"]:
             df[col] = df[col].str.replace('%', '').astype(float)
